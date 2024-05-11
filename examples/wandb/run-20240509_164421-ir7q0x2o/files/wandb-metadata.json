@@ -1,0 +1,165 @@
+{
+    "os": "Linux-5.11.0-41-generic-x86_64-with-glibc2.31",
+    "python": "3.9.19",
+    "heartbeatAt": "2024-05-09T08:44:25.946483",
+    "startedAt": "2024-05-09T08:44:21.586682",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "<python with no main file>",
+    "codePathLocal": null,
+    "host": "pc",
+    "username": "zijieshen",
+    "executable": "/home/zijieshen/anaconda3/envs/pySEG/bin/python",
+    "cpu_count": 12,
+    "cpu_count_logical": 24,
+    "cpu_freq": {
+        "current": 3238.114791666667,
+        "min": 1200.0,
+        "max": 4650.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4800.0
+        },
+        {
+            "current": 1439.389,
+            "min": 1200.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4800.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4800.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4800.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        },
+        {
+            "current": 3500.0,
+            "min": 1200.0,
+            "max": 4600.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 309.3198890686035,
+            "used": 231.10360717773438
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_count": 2,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3090",
+            "memory_total": 25769803776
+        },
+        {
+            "name": "NVIDIA GeForce RTX 3090",
+            "memory_total": 25769803776
+        }
+    ],
+    "memory": {
+        "total": 62.49736785888672
+    }
+}

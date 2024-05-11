@@ -1,0 +1,18 @@
+wandb_version: 1
+
+batch_size:
+  value: 48
+ckpt_path:
+  value: checkpoint.pt
+dropout_p:
+  value: 0.3905214759519103
+epochs:
+  value: 10
+hidden_layer_width:
+  value: 112
+lr:
+  value: 4.564729508711455e-06
+optim_type:
+  value: Adam
+project_name:
+  value: mnist_torchkeras
