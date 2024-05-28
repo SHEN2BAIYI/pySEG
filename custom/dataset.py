@@ -6,7 +6,7 @@ from torchkeras.plots import joint_imgs_col, joint_imgs_row
 
 
 class CustomDataset(Dataset):
-    def __init__(self, img_files, img_size, transforms = None):
+    def __init__(self, img_files, img_size, transforms=None):
         self.__dict__.update(locals())
 
     def __len__(self):

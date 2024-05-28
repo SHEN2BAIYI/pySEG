@@ -1,16 +1,29 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+import multiprocessing as mp
+import torch
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    length = 2**15+1 # with 2**15 or less, it will be OK
+    print("========== randperm in main process ==========")
+    print("torch rand perm")
+    print("randperm length: {}".format(length) )
+    torch.randperm(length)
 
-from torchkeras.kerasmodel import KerasModel
+    def worker(rank, length):
+        print("========== worker process {} ==========".format(rank) )
+        print("torch rand perm")
+        print("randperm length: {}".format(length) )
+        torch.randperm(length) # stuck here, if length is greater than 2**15
+        print("process finished")
+
+    pool = []
+    for i in range(2):
+        w = mp.Process(
+            target=worker,
+            args = (i, length+i-1)
+        )
+        w.start()
+        pool.append(w)
+    for w in pool:
+        w.join()
+    print("done")
