@@ -111,7 +111,7 @@ def trans_ori_comparision(
             bboxs_arr = bboxes.detach().cpu().numpy()
 
     if mean is not None and std is not None:
-        imgs_arr = imgs_arr * std + mean
+        imgs_arr = (imgs_arr * std + mean).astype(np.uint8)
 
     for i in range(max_show_num):
         idx = idxs[i][0]
