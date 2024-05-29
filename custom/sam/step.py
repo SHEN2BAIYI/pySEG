@@ -13,19 +13,19 @@ class SamStepRunner:
 
         features = batch.get('image', None)
         labels = batch.get('mask', None)
-        point = batch.get('keypoints', None)
-        bbox = batch.get('bboxes', None)
+        points = batch.get('keypoints', None)
+        bboxes = batch.get('bboxes', None)
         cls_labels = batch.get('cls_labels', None)
 
-        if point is not None:
-            point = (point, cls_labels)
+        if points is not None:
+            points = (points, cls_labels)
 
         # ---> image encoder <---
         image_embeddings = self.net.image_encoder(features)
         # ---> prompt encoder <---
         sparse_embeddings, dense_embeddings = self.net.prompt_encoder(
-            points=point,
-            boxes=bbox,
+            points=points,
+            boxes=bboxes,
             masks=None
         )
 
