@@ -1,6 +1,0 @@
-
-
-100%|██████████| 1000/1000 [00:01<00:00, 557.74it/s]
-01-basic_mnist_cla.ipynb  checkpoint	 history.png
-02-basic_wandb.ipynb	  checkpoint.pt  wandb
-[34m[1mwandb[39m[22m: Adding directory to artifact (./../datasets/mnist)... Done. 0.1s
