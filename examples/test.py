@@ -1,5 +1,8 @@
 # %% [markdown]
-# # Segment Anything 自定义推理
+# # Segment Anything 微调
+
+# %% [markdown]
+# 这一张显存消耗巨大，batch_size = 2 会将 24G 3090 占满！！！
 
 # %% [markdown]
 # # 一、环境准备
@@ -43,8 +46,9 @@ sys.path.insert(0, '..')
 
 config = Namespace(
     img_size=1024,
-    batch_size=1,
+    batch_size=2,
     num_workers=2,
+    lr=1e-4,
     model_name="vit_b",
     model_cpt_path="../checkpoints/sam/sam_vit_b_01ec64.pth",
     random_prompt=False,
@@ -156,22 +160,13 @@ def trans_ori_comparision(
 
 
 # %% [markdown]
-# # 二、推理
+# # 二、数据准备
 
 # %% [markdown]
-# ## 1.定义模型
-
-# %%
-from segment_anything import sam_model_registry
-
-sam = sam_model_registry[config.model_name](checkpoint=config.model_cpt_path)
-config.img_size = sam.image_encoder.img_size
+# ## 1.定义数据增强方式
 
 # %% [markdown]
-# ## 2.定义数据
-
-# %% [markdown]
-# ### 1.定义数据增强方式
+# 对于 sam_b，其 image_encoder 接收（1024，1024）的图片，我们这里可以自定义数据增强方式。
 
 # %%
 import cv2
@@ -182,23 +177,22 @@ from albumentations.pytorch import ToTensorV2
 def create_transform():
     train_transforms = A.Compose(
         [
-            # A.OneOf([
-            #     A.HorizontalFlip(p=0.5),
-            #     A.VerticalFlip(p=0.5),
-            # ]),
+            A.OneOf([
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+            ]),
             A.LongestMaxSize(
                 max_size=config.img_size, p=1.0
             ),
             A.Normalize(
                 mean=config.mean,
                 std=config.std,
-                max_pixel_value=1,
+                max_pixel_value=1.0,
                 p=1.0
             ),
             A.PadIfNeeded(
                 min_height=config.img_size, min_width=config.img_size,
                 border_mode=cv2.BORDER_CONSTANT,
-                position='top_left',
                 value=0, p=1.0
             ),
             ToTensorV2(p=1),
@@ -212,16 +206,16 @@ def create_transform():
             A.LongestMaxSize(
                 max_size=config.img_size, p=1.0
             ),
+            A.Normalize(
+                mean=config.mean,
+                std=config.std,
+                max_pixel_value=1.0,
+                p=1.0
+            ),
             A.PadIfNeeded(
                 min_height=config.img_size, min_width=config.img_size,
                 border_mode=cv2.BORDER_CONSTANT,
                 value=0, p=1.0
-            ),
-            A.Normalize(
-                mean=config.mean,
-                std=config.std,
-                max_pixel_value=1,
-                p=1.0
             ),
             ToTensorV2(p=1),
         ],
@@ -232,7 +226,10 @@ def create_transform():
 
 
 # %% [markdown]
-# ### 2.定义 dataset 和 dataloader
+# ## 2.定义 dataset 和 dataloader
+
+# %% [markdown]
+# 这里使用 ISIC 的皮肤病变数据集，可以通过：https://challenge.isic-archive.com/data/ 进行下载，只需要改变下面代码中的路径指向自己的数据集就可以。
 
 # %%
 from custom.sam.datasets.isic2016 import ISIC2016Dataset
@@ -246,12 +243,13 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 def create_dataset():
     train_imgs = [
-        '/home/zijieshen/new_disk/datasets/ISIC2016/P1/Train/Images/ISIC_0000000.jpg'
-    ]
+                     str(x) for x in Path("/home/zijieshen/new_disk/datasets/ISIC2016/P1/Train").rglob("*.jpg")
+                     if "checkpoint" not in str(x)
+                 ][:100]
     val_imgs = [
-        str(x) for x in Path("/home/zijieshen/new_disk/datasets/ISIC2016/P1/Val").rglob("*.jpg")
-        if "checkpoint" not in str(x)
-    ]
+                   str(x) for x in Path("/home/zijieshen/new_disk/datasets/ISIC2016/P1/Val").rglob("*.jpg")
+                   if "checkpoint" not in str(x)
+               ][:20]
     train_ts, val_ts = create_transform()
     train_ds = ISIC2016Dataset(
         img_files=train_imgs, transforms=train_ts,
@@ -270,7 +268,7 @@ def create_dataloader(train_ds=None, val_ds=None):
 
     train_dl = DataLoader(
         train_ds, batch_size=config.batch_size,
-        shuffle=False, num_workers=config.num_workers
+        shuffle=True, num_workers=config.num_workers
     )
     val_dl = DataLoader(
         val_ds, batch_size=config.batch_size,
@@ -283,7 +281,10 @@ train_dataset, val_dataset = create_dataset()
 train_dataloader, val_dataloader = create_dataloader(train_dataset, val_dataset)
 
 # %% [markdown]
-# ### 3.数据可视化
+# ## 3.检查数据
+
+# %% [markdown]
+# 检测一下数据增强前后的图像数据，因为进入 SAM 前使用了 Normalize，所以如果要检查的话，需要在前面对那个增强方式进行注释，要不然图片就是白色。
 
 # %%
 import matplotlib.pyplot as plt
@@ -300,94 +301,172 @@ for batch in train_dataloader:
 
     trans_ori_comparision(
         idxs, images, masks, train_dataset, points, bboxes, cls_labels,
-        mean=config.mean, std=config.std, max_show_num=1
+        mean=config.mean, std=config.std, max_show_num=2
     )
 
     break
 
 # %% [markdown]
-# ## 3.推理
+# # 三、训练准备
 
 # %% [markdown]
-# ### 1.点推理
+# ## 1.定义模型
 
 # %% [markdown]
-# #### 1.坐标合并
+# ### 1.定义模型
+#
+
+# %% [markdown]
+# 因为我们期待不在数据加载后，进行任何的数据变化操作，所以的预处理操作全部放在 dataset 里面。
 
 # %%
-point_coords = (points, cls_labels)
+from segment_anything import sam_model_registry
+
+sam = sam_model_registry[config.model_name](checkpoint=config.model_cpt_path)
+
+assert sam.image_encoder.img_size == config.img_size, "图像大小不一致"
 
 # %% [markdown]
-# #### 2.推理
+# ### 2.参数统计（可选）
 
 # %%
-with torch.no_grad():
-    features = sam.image_encoder(images)
+mdp_num = sum(p.numel() for p in sam.mask_decoder.parameters())
+iep_num = sum(p.numel() for p in sam.image_encoder.parameters())
+pdp_num = sum(p.numel() for p in sam.prompt_encoder.parameters())
 
-    sparse_embeddings, dense_embeddings = sam.prompt_encoder(
-        points=point_coords,
-        boxes=None,
-        masks=None
-    )
-
-    low_res_masks, iou_predictions = sam.mask_decoder(
-        image_embeddings=features,
-        image_pe=sam.prompt_encoder.get_dense_pe(),
-        sparse_prompt_embeddings=sparse_embeddings,
-        dense_prompt_embeddings=dense_embeddings,
-        multimask_output=False
-    )
-
-    masks = sam.postprocess_masks(
-        low_res_masks, images.shape[-2:], images.shape[-2:]
-    )
-
-    masks = masks > 0
-
-# %% [markdown]
-# #### 3.可视化
-
-# %%
-trans_ori_comparision(
-    idxs, images, masks, train_dataset, points, bboxes, cls_labels,
-    mean=config.mean, std=config.std, max_show_num=1
+print(
+    f"mask_decoder parameter number: {mdp_num} \n",
+    f"image_encoder parameter number: {iep_num} \n",
+    f"prompt_encoder parameter number: {pdp_num} \n",
+    f"total parameter number: {mdp_num + iep_num + pdp_num}"
 )
 
 # %% [markdown]
-# ### 2.框推理
-
-# %% [markdown]
-# #### 1.推理
+# ## 2.定义 loss、optimizer、lr_schedulaer、metrics_dict
 
 # %%
-with torch.no_grad():
-    features = sam.image_encoder(images)
+import torch
+from torchkeras.metrics import IOU
+from torchkeras.kerasmodel import KerasModel
+from custom.loss import MixedLoss, DiceLoss
 
-    sparse_embeddings, dense_embeddings = sam.prompt_encoder(
-        points=None,
-        boxes=bboxes,
-        masks=None
-    )
-
-    low_res_masks, iou_predictions = sam.mask_decoder(
-        image_embeddings=features,
-        image_pe=sam.prompt_encoder.get_dense_pe(),
-        sparse_prompt_embeddings=sparse_embeddings,
-        dense_prompt_embeddings=dense_embeddings,
-        multimask_output=False
-    )
-
-    masks = sam.postprocess_masks(
-        low_res_masks, images.shape[-2:], images.shape[-2:]
-    )
+optim = torch.optim.Adam(sam.parameters(), lr=config.lr)
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    optim, T_max=8, eta_min=1e-6
+)
+metrics = {
+    "iou": IOU(num_classes=1)
+}
 
 # %% [markdown]
-# #### 2.可视化
+# ## 3.定义 torchkeras 模型
 
 # %%
-trans_ori_comparision(
-    idxs, images, masks, train_dataset, points, bboxes, cls_labels,
-    mean=config.mean, std=config.std, max_show_num=1
+model = KerasModel(
+    sam, loss_fn=MixedLoss(0.5), optimizer=optim,
+    lr_scheduler=lr_scheduler, metrics_dict=metrics
+)
+
+# %% [markdown]
+# ## 4.定义训练 StepRunner
+
+# %%
+from importlib import reload
+from torchkeras import kerasmodel, pbar
+from custom.sam.step import SamStepRunner
+
+# reload(kerasmodel)
+# reload(pbar)
+
+kerasmodel.KerasModel.StepRunner = SamStepRunner
+
+# %% [markdown]
+# # 四、训练
+
+# %% [markdown]
+# ## 1.Wandb 记录、VisDisplay 展示
+
+# %%
+from importlib import reload
+from torchkeras import kerasmodel, kerascallbacks
+
+reload(kerascallbacks)
+
+from torchkeras.kerascallbacks import WandbCallback
+from torchkeras.kerascallbacks import VisDisplay
+
+
+def display_fn(model):
+    from matplotlib import pyplot as plt
+    batch = next(iter(val_dataloader))
+
+    with torch.no_grad():
+        model.eval()
+
+        images = batch.get('image', None)
+        idxs = batch.get('idx', None)
+
+        points = batch.get('keypoints', None)
+        bboxes = batch.get('bboxes', None)
+        cls_labels = batch.get('cls_labels', None)
+
+        if points is not None:
+            points = (points, cls_labels)
+
+        sparse_embeddings, dense_embeddings = model.net.prompt_encoder(
+            points=points,
+            boxes=bboxes,
+            masks=None
+        )
+
+        low_res_masks, iou_predictions = model.net.mask_decoder(
+            image_embeddings=images,
+            image_pe=sam.prompt_encoder.get_dense_pe(),
+            sparse_prompt_embeddings=sparse_embeddings,
+            dense_prompt_embeddings=dense_embeddings,
+            multimask_output=False
+        )
+
+        preds = model.postprocess_masks(
+            low_res_masks, images.shape[-2:], images.shape[-2:]
+        )
+
+        preds = preds > 0
+
+        trans_ori_comparision(
+            idxs, images, preds, val_dataset, points, bboxes, cls_labels,
+            mean=config.mean, std=config.std, max_show_num=2
+        )
+
+
+wandb_cb = WandbCallback(
+    project='sam',
+    config=config.__dict__,
+    name=None,
+    save_code=True,
+    save_ckpt=True,
+)
+
+visdis_cb = VisDisplay(display_fn, model=model, init_display=False)
+
+# %% [markdown]
+# ## 2.单卡训练
+
+# %%
+
+dfhistory = model.fit(
+    train_data=train_dataloader,
+    val_data=val_dataloader,
+    epochs=40,
+    ckpt_path='checkpoint.pt',
+    patience=5,
+    monitor="val_iou",
+    mode="max",
+    mixed_precision='no',
+    callbacks=[wandb_cb, visdis_cb],
+    plot=True,
+    cpu=False,
+    quiet=True,
 )
 
 
